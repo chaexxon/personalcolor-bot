@@ -1,0 +1,8 @@
+.vscode/
+.cache/
+AppData/
+Downloads/
+NTUSER.DAT
+*.log
+*.pyc
+__pycache__/
