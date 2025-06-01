@@ -1,10 +1,11 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, Response
 import cv2
 import numpy as np
 from sklearn.cluster import KMeans
 from PIL import Image
 import requests
 from io import BytesIO
+import json
 
 app = Flask(__name__)
 
@@ -63,7 +64,7 @@ def tone_analysis():
 
         final = max(set(results), key=results.count)
 
-        return jsonify({
+        result_json = {
             "version": "2.0",
             "template": {
                 "outputs": [
@@ -74,9 +75,12 @@ def tone_analysis():
                     }
                 ]
             }
-        })
+        }
+
+        return Response(json.dumps(result_json, ensure_ascii=False), content_type='application/json')
+
     except Exception as e:
-        return jsonify({
+        error_json = {
             "version": "2.0",
             "template": {
                 "outputs": [
@@ -87,7 +91,8 @@ def tone_analysis():
                     }
                 ]
             }
-        })
+        }
+        return Response(json.dumps(error_json, ensure_ascii=False), content_type='application/json')
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
