@@ -44,9 +44,9 @@ def tone_analysis():
         if not image_url:
             raise ValueError("No image URL provided")
 
-        # ✅ Wikimedia 403 차단 우회용 User-Agent 설정
+        # ✅ Wikimedia 403 차단 우회용: 브라우저 User-Agent 사용
         headers = {
-            'User-Agent': 'Mozilla/5.0 (compatible; PersonalColorBot/1.0; +https://personalcolor-bot.onrender.com)'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
         }
         response = requests.get(image_url, headers=headers, timeout=5)
         response.raise_for_status()
