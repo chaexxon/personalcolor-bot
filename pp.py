@@ -2,11 +2,11 @@ from flask import Flask, request, jsonify
 import cv2
 import numpy as np
 from sklearn.cluster import KMeans
-import os
+import requests
+from PIL import Image
+from io import BytesIO
 
 app = Flask(__name__)
-UPLOAD_FOLDER = './uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def adjust_hsv_by_lighting(h, s, v, lighting):
     if lighting == "노란 조명":
@@ -15,21 +15,13 @@ def adjust_hsv_by_lighting(h, s, v, lighting):
         v = min(255, v + 10)
     elif lighting == "어두운 실내":
         v = max(0, v - 20)
-    elif lighting == "하얀 조명":
-        s = max(0, s - 10)
     return h, s, v
 
 def classify_tone(h, s, v):
     if v > 170:
-        if 20 <= h <= 50:
-            return "봄웜"
-        else:
-            return "여쿨"
+        return "봄웜" if 20 <= h <= 50 else "여쿨"
     else:
-        if 10 <= h <= 40:
-            return "가을웜"
-        else:
-            return "겨울쿨"
+        return "가을웜" if 10 <= h <= 40 else "겨울쿨"
 
 def rgb_to_hsv(r, g, b):
     rgb = np.uint8([[[r, g, b]]])
@@ -39,42 +31,39 @@ def rgb_to_hsv(r, g, b):
 @app.route("/tone", methods=["POST"])
 def tone_analysis():
     try:
-        lighting = request.form.get("lighting", "자연광")
+        body = request.get_json()
+        lighting = body['action']['params'].get('lighting', '자연광')
+        image_url = body['userRequest']['image']['url']
 
-        if 'image' not in request.files:
-            raise Exception("이미지가 포함되지 않았습니다.")
-        file = request.files['image']
-        image_path = os.path.join(UPLOAD_FOLDER, "temp.jpg")
-        file.save(image_path)
+        # 이미지 다운로드
+        response = requests.get(image_url)
+        img = Image.open(BytesIO(response.content)).convert("RGB")
+        img = img.resize((100, 100))
+        img_np = np.array(img).reshape((-1, 3))
 
-        img = cv2.imread(image_path)
-        if img is None:
-            raise Exception("이미지를 열 수 없습니다.")
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img_small = cv2.resize(img, (100, 100))
-        img_reshape = img_small.reshape((-1, 3))
-
+        # KMeans
         kmeans = KMeans(n_clusters=5, random_state=42)
-        kmeans.fit(img_reshape)
+        kmeans.fit(img_np)
         colors = kmeans.cluster_centers_.astype(int)
 
-        tones = []
+        results = []
         for color in colors:
             h, s, v = rgb_to_hsv(*color)
             h, s, v = adjust_hsv_by_lighting(h, s, v, lighting)
-            tone = classify_tone(h, s, v)
-            tones.append(tone)
+            results.append(classify_tone(h, s, v))
 
-        final_tone = max(set(tones), key=tones.count)
+        final = max(set(results), key=results.count)
 
         return jsonify({
             "version": "2.0",
             "template": {
-                "outputs": [{
-                    "simpleText": {
-                        "text": f"분석 결과: '{final_tone}' 톤이에요! 🎨"
+                "outputs": [
+                    {
+                        "simpleText": {
+                            "text": f"분석 결과: '{final}' 톤이에요! 🎨"
+                        }
                     }
-                }]
+                ]
             }
         })
 
@@ -82,11 +71,13 @@ def tone_analysis():
         return jsonify({
             "version": "2.0",
             "template": {
-                "outputs": [{
-                    "simpleText": {
-                        "text": f"오류 발생 😢\n{str(e)}"
+                "outputs": [
+                    {
+                        "simpleText": {
+                            "text": f"⚠️ 오류 발생: {str(e)}"
+                        }
                     }
-                }]
+                ]
             }
         })
 
