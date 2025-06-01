@@ -44,10 +44,14 @@ def tone_analysis():
         if not image_url:
             raise ValueError("No image URL provided")
 
-        response = requests.get(image_url, timeout=5)
+        # ✅ Wikimedia 403 차단 우회용 User-Agent 설정
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (compatible; PersonalColorBot/1.0; +https://personalcolor-bot.onrender.com)'
+        }
+        response = requests.get(image_url, headers=headers, timeout=5)
         response.raise_for_status()
 
-        # ✅ PIL 대신 OpenCV로 이미지 디코딩
+        # ✅ OpenCV로 이미지 디코딩
         nparr = np.frombuffer(response.content, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         if img is None:
